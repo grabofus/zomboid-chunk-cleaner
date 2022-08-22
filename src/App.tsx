@@ -276,7 +276,7 @@ function App() {
     }
   }, [mapData, selection, isSelectionInverted]);
 
-  const columnCount = Math.floor((tileInfo.maxX - tileInfo.minX) / 100) + 1;
+  const columnCount = Math.floor(tileInfo.maxX / 100) - Math.floor(tileInfo.minX / 100) + 1;
 
   return (
     <ThemeProvider theme={darkTheme}>
