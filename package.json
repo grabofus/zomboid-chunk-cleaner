@@ -2,6 +2,7 @@
   "name": "zomboid-chunk-cleaner",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
