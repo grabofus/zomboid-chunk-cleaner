@@ -37,8 +37,11 @@ async function loadMapData(): Promise<Coordinate[]> {
   return mapData;
 }
 
-function deleteMapData(mapData: Coordinate[], region: Region): [mapData: Coordinate[], done: Promise<string>] {
-  const fileList = mapData.filter((point) => isPointInRegion(point, region)).map(({x, y}) => `map_${x}_${y}.bin`);
+function deleteMapData(mapData: Coordinate[], region: Region, isSelectionInverted: boolean): [mapData: Coordinate[], done: Promise<string>] {
+  const fileList = mapData
+    .filter((point) => isPointInRegion(point, region, isSelectionInverted))
+    .map(({x, y}) => `map_${x}_${y}.bin`);
+
   const promise = new Promise<string>(async (resolve) => {
     // try {
       for (const file of fileList) {
@@ -50,12 +53,14 @@ function deleteMapData(mapData: Coordinate[], region: Region): [mapData: Coordin
     //   resolve((e as any).toString());
     // }
   });
-  return [mapData.filter((point) => !isPointInRegion(point, region)), promise];
+  return [mapData.filter((point) => !isPointInRegion(point, region, isSelectionInverted)), promise];
 }
 
-function isPointInRegion(point: Coordinate, region: Region): boolean {
+function isPointInRegion(point: Coordinate, region: Region, isSelectionInverted: boolean): boolean {
   const [from, to] = region;
-  return from.x <= point.x && point.x <= to.x && from.y <= point.y && point.y <= to.y;
+  const isInRegion = from.x <= point.x && point.x <= to.x && from.y <= point.y && point.y <= to.y;
+  const isSelected = (!isSelectionInverted && isInRegion) || (isSelectionInverted && !isInRegion);
+  return isSelected;
 }
 
 const darkTheme = createTheme({
@@ -81,6 +86,7 @@ const modalStyle = {
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selection, setSelection] = useState<Region>();
+  const [isSelectionInverted, setIsSelectionInverted] = useState<boolean>(false);
   const [mapData, setMapData] = useState<Coordinate[]>([]);
   const mapCanvasRef = useRef<HTMLCanvasElement>(null);
   const selectionCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -109,10 +115,11 @@ function App() {
     context.fillRect(0, 0, maxX * zoomLevel, maxY * zoomLevel);
 
     for (const point of mapData) {
-      context.fillStyle = (!selection || isPointInRegion(point, selection)) ? '#f66' : 'hsla(41, 49%, 76%, 1)';
+      const isSelected = selection && isPointInRegion(point, selection, isSelectionInverted); 
+      context.fillStyle = isSelected ? '#f66' : 'hsla(41, 49%, 76%, 1)';
       context.fillRect(point.x * zoomLevel, point.y * zoomLevel, 1 * zoomLevel, 1 * zoomLevel);
     }
-  }, [mapData, selection]);
+  }, [mapData, selection, isSelectionInverted]);
 
   // Track mouse pos
   useEffect(() => {
@@ -124,6 +131,7 @@ function App() {
 
     let mousePos: Coordinate = { x: 0, y: 0 };
     let selectionStart: Coordinate | undefined;
+    let isSelectionInverted: boolean;
 
     const getMousePosition = (e: MouseEvent): Coordinate & { isOverCanvas: boolean } => {
       const canvasRect = canvas.getBoundingClientRect();
@@ -138,17 +146,25 @@ function App() {
       const mouseY = mousePos.y;
 
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.fillStyle = 'black';
-      context.fillText(`X: ${mouseX} Y: ${mouseX}`, 4, 12);
 
       if (selectionStart) {
         const selectionX = selectionStart.x;
         const selectionY = selectionStart.y;
+        
         context.fillStyle = '#f664';
+        if (isSelectionInverted) {
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.clearRect(selectionX, selectionY, mouseX - selectionX, mouseY - selectionY);
+        } else {
+          context.fillRect(selectionX, selectionY, mouseX - selectionX, mouseY - selectionY);
+        }
+        
         context.strokeStyle = '#f66c';
-        context.fillRect(selectionX, selectionY, mouseX - selectionX, mouseY - selectionY);
         context.strokeRect(selectionX, selectionY, mouseX - selectionX, mouseY - selectionY);
       }
+      
+      context.fillStyle = 'black';
+      context.fillText(`X: ${mouseX} Y: ${mouseY}`, 4, 12);
     }
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -161,6 +177,9 @@ function App() {
       
       e.preventDefault();
       selectionStart = getMousePosition(e);
+      isSelectionInverted = e.ctrlKey;
+      setSelection(undefined);
+      setIsSelectionInverted(isSelectionInverted);
       draw();
     };
 
@@ -201,7 +220,13 @@ function App() {
     };
   }, []);
 
-  const filesToDelete = useMemo(() => selection ? mapData.filter((point) => isPointInRegion(point, selection)).length : 0, [mapData, selection]);
+  const filesToDelete = useMemo(() => {
+    if (selection) {
+      return mapData.filter((point) => isPointInRegion(point, selection, isSelectionInverted)).length;
+    } else {
+      return 0;
+    }
+  }, [mapData, selection, isSelectionInverted]);
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -214,6 +239,9 @@ function App() {
             });
           }}>Load map data</Button>
           <Button color='error' disabled={filesToDelete === 0} onClick={() => setIsModalOpen(true)}>Delete {filesToDelete} chunks</Button>
+        </Grid>
+        <Grid item xs={8} sx={{ ml: 2 }}>
+          <Typography>Hold Ctrl before selecting a region to invert it</Typography>
         </Grid>
         <Grid item>
           <Paper style={{ padding: '1rem', display: mapData.length > 0 ? 'grid' : 'none' }}>
@@ -251,7 +279,7 @@ function App() {
                 return;
               }
 
-              const [newMapData, done] = deleteMapData(mapData, selection);
+              const [newMapData, done] = deleteMapData(mapData, selection, isSelectionInverted);
 
               done.then((error) => {
                 if (!error) {
