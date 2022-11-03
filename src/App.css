@@ -3,11 +3,10 @@ body {
 }
 
 .tile {
-  width: 100px;
-  height: 100px;
   opacity: 0;
   transition: opacity 300ms ease-in;
   will-change: opacity;
+  image-rendering: pixelated;
 }
 
 .tile.loaded {
