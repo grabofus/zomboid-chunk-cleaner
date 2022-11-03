@@ -110,7 +110,11 @@ export const MapDisplay: React.FC = () => {
             const x = e.clientX - Math.floor(canvasRect.left);
             const y = e.clientY - Math.floor(canvasRect.top);
             const isOverCanvas = 0 <= x && x < canvasRect.width && 0 <= y && y < canvasRect.height;
-            return { x: x + offsetX, y: y + offsetY, isOverCanvas };
+            return {
+                x: Math.floor(x / zoomLevel + offsetX),
+                y: Math.floor(y / zoomLevel + offsetY),
+                isOverCanvas
+            };
         };
 
         const draw = () => {
@@ -196,7 +200,7 @@ export const MapDisplay: React.FC = () => {
             document.body.removeEventListener('mousedown', handleMouseDown);
             document.body.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [tileInfo, selectRegion, unselectRegion]);
+    }, [tileInfo, selectRegion, unselectRegion, zoomLevel]);
 
     return (
         <Paper
@@ -209,8 +213,8 @@ export const MapDisplay: React.FC = () => {
             {isMapDisplayed && (
                 <div
                     style={{
-                        width: tileInfo.maxX - tileInfo.minX,
-                        height: tileInfo.maxY - tileInfo.minY,
+                        width: zoomLevel * (tileInfo.maxX - tileInfo.minX),
+                        height: zoomLevel * (tileInfo.maxY - tileInfo.minY),
                         overflow: 'hidden',
                         gridArea: '1 / 1',
                         backgroundColor: 'rgba(0,0,0,0.2)'
@@ -218,10 +222,10 @@ export const MapDisplay: React.FC = () => {
                 >
                     <div
                         style={{
-                            marginLeft: -(tileInfo.minX % 100),
-                            marginTop: -(tileInfo.minY % 100),
+                            marginLeft: zoomLevel * -(tileInfo.minX % 100),
+                            marginTop: zoomLevel * -(tileInfo.minY % 100),
                             display: 'grid',
-                            gridTemplateColumns: `repeat(${tileInfo.columnCount}, 100px)`,
+                            gridTemplateColumns: `repeat(${tileInfo.columnCount}, ${zoomLevel * 100}px)`,
                             zIndex: 0
                         }}
                     >
@@ -233,6 +237,8 @@ export const MapDisplay: React.FC = () => {
                                 onLoad={(e) => {
                                     e.currentTarget.classList.add('loaded');
                                 }}
+                                width={zoomLevel * 100}
+                                height={zoomLevel * 100}
                             ></img>
                         ))}
                     </div>
