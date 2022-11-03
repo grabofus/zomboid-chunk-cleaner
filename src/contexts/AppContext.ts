@@ -12,12 +12,14 @@ export const AppContext = createContext<AppContextValue>({
         loadMapData: err,
         selectRegion: err,
         unselectRegion: err,
+        setZoomLevel: err,
         toggleMap: err
     },
     state: {
         isMapDisplayed: true,
         isSelectionInverted: false,
         mapData: [],
-        selection: undefined
+        selection: undefined,
+        zoomLevel: 1
     }
 });

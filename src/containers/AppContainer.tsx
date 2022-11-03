@@ -20,6 +20,7 @@ export const AppContainer: React.FC = (props) => {
     const [isMapDisplayed, setIsMapDisplayed] = useState<boolean>(true);
     const [selectionInfo, setSelectionInfo] = useState<SelectionInfo | undefined>(undefined);
     const [mapData, setMapData] = useState<Coordinate[]>([]);
+    const [zoomLevel, setZoomLevel] = useState<number>(1);
 
     const deleteFilesRef = useRef<DeleteFiles>();
     deleteFilesRef.current = {
@@ -71,6 +72,9 @@ export const AppContainer: React.FC = (props) => {
             unselectRegion: () => {
                 setSelectionInfo(undefined);
             },
+            setZoomLevel: (zoomLevel) => {
+                setZoomLevel(zoomLevel);
+            },
             toggleMap: (isMapDisplayed) => {
                 setIsMapDisplayed(isMapDisplayed);
             }
@@ -82,9 +86,10 @@ export const AppContainer: React.FC = (props) => {
             isMapDisplayed,
             isSelectionInverted: selectionInfo?.isSelectionInverted ?? false,
             mapData,
-            selection: selectionInfo?.selection
+            selection: selectionInfo?.selection,
+            zoomLevel
         }),
-        [isMapDisplayed, mapData, selectionInfo]
+        [isMapDisplayed, mapData, selectionInfo, zoomLevel]
     );
 
     const value = useMemo(() => ({ actions, state }), [actions, state]);

@@ -2,7 +2,7 @@ import { Box, Button, Modal, Typography } from '@mui/material';
 import { useMemo } from 'react';
 
 import { useAppContext } from '../hooks';
-import { isPointSelected } from '../utils/isPointSelected';
+import { isPointSelected } from '../utils';
 
 interface ConfirmDeleteModalProps {
     isModalOpen?: boolean;

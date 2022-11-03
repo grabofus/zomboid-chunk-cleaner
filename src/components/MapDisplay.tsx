@@ -1,21 +1,20 @@
 import { Paper } from '@mui/material';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { MAP_PADDING } from '../constants';
 import { useAppContext } from '../hooks';
 import type { Coordinate } from '../types';
-import { isPointSelected } from '../utils/isPointSelected';
+import { isChildOf, isPointSelected } from '../utils';
 
 export const MapDisplay: React.FC = () => {
     const {
         actions: { selectRegion, unselectRegion },
-        state: { isMapDisplayed, isSelectionInverted, mapData, selection }
+        state: { isMapDisplayed, isSelectionInverted, mapData, selection, zoomLevel }
     } = useAppContext();
 
+    const mapRootRef = useRef<HTMLDivElement>(null);
     const mapCanvasRef = useRef<HTMLCanvasElement>(null);
     const selectionCanvasRef = useRef<HTMLCanvasElement>(null);
-
-    const [zoomLevel, setZoomLevel] = useState(1);
 
     // Calculate map tiles to display
     const tileInfo = useMemo(() => {
@@ -85,7 +84,7 @@ export const MapDisplay: React.FC = () => {
             context.fillStyle = isSelected ? 'hsla(0, 100%, 76%, 70%)' : 'hsla(41, 49%, 76%, 70%)';
             context.fillRect((point.x - minX) * zoomLevel, (point.y - minY) * zoomLevel, 1 * zoomLevel, 1 * zoomLevel);
         }
-    }, [mapData, tileInfo, selection, isSelectionInverted]);
+    }, [mapData, tileInfo, selection, isSelectionInverted, zoomLevel]);
 
     // Draw pending selection over map canvas
     useEffect(() => {
@@ -105,15 +104,13 @@ export const MapDisplay: React.FC = () => {
 
         const { minX: offsetX, minY: offsetY } = tileInfo;
 
-        const getMousePosition = (e: MouseEvent): Coordinate & { isOverCanvas: boolean } => {
+        const getMousePosition = (e: MouseEvent): Coordinate => {
             const canvasRect = canvas.getBoundingClientRect();
             const x = e.clientX - Math.floor(canvasRect.left);
             const y = e.clientY - Math.floor(canvasRect.top);
-            const isOverCanvas = 0 <= x && x < canvasRect.width && 0 <= y && y < canvasRect.height;
             return {
                 x: Math.floor(x / zoomLevel + offsetX),
-                y: Math.floor(y / zoomLevel + offsetY),
-                isOverCanvas
+                y: Math.floor(y / zoomLevel + offsetY)
             };
         };
 
@@ -127,16 +124,21 @@ export const MapDisplay: React.FC = () => {
                 const selectionX = selectionStart.x;
                 const selectionY = selectionStart.y;
 
+                const rectX = (selectionX - offsetX) * zoomLevel;
+                const rectY = (selectionY - offsetY) * zoomLevel;
+                const rectWidth = (mouseX - selectionX) * zoomLevel;
+                const rectHeight = (mouseY - selectionY) * zoomLevel;
+
                 context.fillStyle = '#f664';
                 if (isSelectionInverted) {
                     context.fillRect(0, 0, canvas.width, canvas.height);
-                    context.clearRect(selectionX - offsetX, selectionY - offsetY, mouseX - selectionX, mouseY - selectionY);
+                    context.clearRect(rectX, rectY, rectWidth, rectHeight);
                 } else {
-                    context.fillRect(selectionX - offsetX, selectionY - offsetY, mouseX - selectionX, mouseY - selectionY);
+                    context.fillRect(rectX, rectY, rectWidth, rectHeight);
                 }
 
                 context.strokeStyle = '#f66c';
-                context.strokeRect(selectionX - offsetX, selectionY - offsetY, mouseX - selectionX, mouseY - selectionY);
+                context.strokeRect(rectX, rectY, rectWidth, rectHeight);
             }
 
             context.fillStyle = 'rgba(0,0,0,0.3)';
@@ -152,7 +154,11 @@ export const MapDisplay: React.FC = () => {
         };
 
         const handleMouseDown = (e: MouseEvent) => {
-            if (!getMousePosition(e).isOverCanvas) {
+            if (e.button !== 0) {
+                return;
+            }
+
+            if (!(e.target instanceof HTMLElement) || !mapRootRef.current || !isChildOf(e.target, mapRootRef.current)) {
                 return;
             }
 
@@ -164,6 +170,10 @@ export const MapDisplay: React.FC = () => {
         };
 
         const handleMouseUp = (e: MouseEvent) => {
+            if (e.button !== 0) {
+                return;
+            }
+
             e.preventDefault();
 
             if (!selectionStart) {
@@ -202,53 +212,67 @@ export const MapDisplay: React.FC = () => {
         };
     }, [tileInfo, selectRegion, unselectRegion, zoomLevel]);
 
+    if (!mapData.length) {
+        return null;
+    }
+
     return (
         <Paper
             style={{
                 padding: '1rem',
-                display: mapData.length > 0 ? 'grid' : 'none',
-                contain: 'paint'
+                userSelect: 'none'
             }}
         >
-            {isMapDisplayed && (
-                <div
-                    style={{
-                        width: zoomLevel * (tileInfo.maxX - tileInfo.minX),
-                        height: zoomLevel * (tileInfo.maxY - tileInfo.minY),
-                        overflow: 'hidden',
-                        gridArea: '1 / 1',
-                        backgroundColor: 'rgba(0,0,0,0.2)'
-                    }}
-                >
+            <div
+                ref={mapRootRef}
+                style={{
+                    display: mapData.length > 0 ? 'grid' : 'none',
+                    contain: 'paint',
+                    overflow: 'auto',
+                    maxHeight: '80vh',
+                    maxWidth: '80vw'
+                }}
+            >
+                {isMapDisplayed && (
                     <div
                         style={{
-                            marginLeft: zoomLevel * -(tileInfo.minX % 100),
-                            marginTop: zoomLevel * -(tileInfo.minY % 100),
-                            display: 'grid',
-                            gridTemplateColumns: `repeat(${tileInfo.columnCount}, ${zoomLevel * 100}px)`,
-                            zIndex: 0
+                            width: zoomLevel * (tileInfo.maxX - tileInfo.minX),
+                            height: zoomLevel * (tileInfo.maxY - tileInfo.minY),
+                            overflow: 'hidden',
+                            gridArea: '1 / 1',
+                            backgroundColor: 'rgba(0,0,0,0.2)'
                         }}
                     >
-                        {tileInfo.tiles.map((id) => (
-                            <img
-                                key={id}
-                                className="tile"
-                                src={`./assets/map_${id}.png`}
-                                onLoad={(e) => {
-                                    e.currentTarget.classList.add('loaded');
-                                }}
-                                width={zoomLevel * 100}
-                                height={zoomLevel * 100}
-                            ></img>
-                        ))}
+                        <div
+                            style={{
+                                marginLeft: zoomLevel * -(tileInfo.minX % 100),
+                                marginTop: zoomLevel * -(tileInfo.minY % 100),
+                                display: 'grid',
+                                gridTemplateColumns: `repeat(${tileInfo.columnCount}, ${zoomLevel * 100}px)`,
+                                zIndex: 0
+                            }}
+                        >
+                            {tileInfo.tiles.map((id) => (
+                                <img
+                                    key={id}
+                                    className="tile"
+                                    src={`./assets/map_${id}.png`}
+                                    onLoad={(e) => {
+                                        e.currentTarget.classList.add('loaded');
+                                    }}
+                                    width={zoomLevel * 100}
+                                    height={zoomLevel * 100}
+                                ></img>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
-            <canvas
-                ref={mapCanvasRef}
-                style={{ zIndex: 1, gridArea: '1 / 1', backgroundColor: isMapDisplayed ? undefined : 'hsla(41, 30%, 61%, 1)' }}
-            ></canvas>
-            <canvas ref={selectionCanvasRef} style={{ zIndex: 2, gridArea: '1 / 1' }}></canvas>
+                )}
+                <canvas
+                    ref={mapCanvasRef}
+                    style={{ zIndex: 1, gridArea: '1 / 1', backgroundColor: isMapDisplayed ? undefined : 'hsla(41, 30%, 61%, 1)' }}
+                ></canvas>
+                <canvas ref={selectionCanvasRef} style={{ zIndex: 2, gridArea: '1 / 1' }}></canvas>
+            </div>
         </Paper>
     );
 };

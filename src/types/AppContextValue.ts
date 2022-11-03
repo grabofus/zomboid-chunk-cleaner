@@ -7,6 +7,7 @@ export interface AppContextValue {
         loadMapData: () => Promise<void>;
         selectRegion: (region: Region, isSelectionInverted?: boolean) => void;
         unselectRegion: () => void;
+        setZoomLevel: (zoomLevel: number) => void;
         toggleMap: (isMapDisplayed: boolean) => void;
     };
     state: {
@@ -14,5 +15,6 @@ export interface AppContextValue {
         isSelectionInverted: boolean;
         mapData: Coordinate[];
         selection: Region | undefined;
+        zoomLevel: number;
     };
 }
