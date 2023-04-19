@@ -1,4 +1,4 @@
-import { Button, Checkbox, Collapse, FormControl, FormControlLabel, InputLabel, MenuItem, Select } from '@mui/material';
+import { Button, Checkbox, Collapse, FormControl, FormControlLabel, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 import { useAppContext } from '../hooks';
@@ -12,19 +12,28 @@ export const Menu: React.FC<MenuProps> = (props) => {
     const { onDelete } = props;
 
     const {
-        actions: { loadMapData, setZoomLevel, toggleMap },
-        state: { isMapDisplayed, isSelectionInverted, mapData, selection, zoomLevel }
+        actions: { loadMapData, setZoomLevel, toggleMap, setIsSafeHouseProtectionEnabled, setSafeHousePadding },
+        state: {
+            isMapDisplayed,
+            isSelectionInverted,
+            mapData,
+            selection,
+            zoomLevel,
+            isSafeHouseProtectionEnabled,
+            excludedRegions,
+            safeHousePadding
+        }
     } = useAppContext();
 
-    const [showInfo, setShowInfo] = useState(false);
+    const [showInfo, setShowInfo] = useState(true);
 
     const filesToDelete = useMemo(() => {
         if (!selection) {
             return 0;
         }
 
-        return mapData.filter((point) => isPointSelected(point, selection, isSelectionInverted)).length;
-    }, [mapData, selection, isSelectionInverted]);
+        return mapData.filter((point) => isPointSelected(point, selection, isSelectionInverted, excludedRegions)).length;
+    }, [mapData, selection, isSelectionInverted, excludedRegions]);
 
     return (
         <>
@@ -40,7 +49,16 @@ export const Menu: React.FC<MenuProps> = (props) => {
                     control={<Checkbox checked={isMapDisplayed} onChange={(_, value) => toggleMap(value)} />}
                     label="Overlay Knox Country"
                 />
-                <FormControlLabel control={<Checkbox checked={showInfo} onChange={(_, value) => setShowInfo(value)} />} label="Show info" />
+                <FormControlLabel
+                    control={
+                        <Checkbox checked={isSafeHouseProtectionEnabled} onChange={(_, value) => setIsSafeHouseProtectionEnabled(value)} />
+                    }
+                    label="Protect Safehouses"
+                />
+                <FormControlLabel
+                    control={<Checkbox checked={showInfo} onChange={(_, value) => setShowInfo(value)} />}
+                    label="Show Guide"
+                />
                 <FormControl>
                     <InputLabel id="zoom-level-label">Zoom level</InputLabel>
                     <Select
@@ -64,6 +82,21 @@ export const Menu: React.FC<MenuProps> = (props) => {
                     </Select>
                 </FormControl>
             </div>
+            <Collapse in={isSafeHouseProtectionEnabled}>
+                <TextField
+                    label="Safehouse padding"
+                    type="number"
+                    value={safeHousePadding}
+                    onChange={(event) => {
+                        let value = parseInt(event.target.value, 10);
+                        if (isNaN(value)) {
+                            return;
+                        }
+                        value = Math.max(0, value);
+                        setSafeHousePadding(value);
+                    }}
+                />
+            </Collapse>
             <Collapse in={showInfo}>
                 <ul>
                     <li>

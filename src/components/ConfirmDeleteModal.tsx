@@ -14,7 +14,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = (props) => 
 
     const {
         actions: { deleteMapData },
-        state: { isSelectionInverted, mapData, selection }
+        state: { isSelectionInverted, mapData, selection, excludedRegions }
     } = useAppContext();
 
     const filesToDelete = useMemo(() => {
@@ -22,7 +22,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = (props) => 
             return 0;
         }
 
-        return mapData.filter((point) => isPointSelected(point, selection, isSelectionInverted)).length;
+        return mapData.filter((point) => isPointSelected(point, selection, isSelectionInverted, excludedRegions)).length;
     }, [mapData, selection, isSelectionInverted]);
 
     return (

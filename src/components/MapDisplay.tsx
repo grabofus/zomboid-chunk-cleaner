@@ -3,13 +3,32 @@ import { useEffect, useMemo, useRef } from 'react';
 
 import { MAP_PADDING } from '../constants';
 import { useAppContext } from '../hooks';
-import type { Coordinate } from '../types';
-import { isChildOf, isPointSelected } from '../utils';
+import type { Coordinate, Region } from '../types';
+import { expandRegion, isChildOf, isPointSelected } from '../utils';
+
+enum Colors {
+    SAFE_HOUSE = 'hsla(100, 100%, 76%, 70%)',
+    SAFE_HOUSE_SURROUNDING = 'hsla(100, 100%, 76%, 40%)',
+    DELETE = 'hsla(0, 100%, 76%, 70%)',
+    DEFAULT = 'hsla(41, 49%, 76%, 70%)',
+    TEXT_BACKGROUND = 'rgba(0, 0, 0, 0.3)',
+    TEXT_COLOR = '#fff'
+}
 
 export const MapDisplay: React.FC = () => {
     const {
         actions: { selectRegion, unselectRegion },
-        state: { isMapDisplayed, isSelectionInverted, mapData, selection, zoomLevel }
+        state: {
+            excludedRegions,
+            isMapDisplayed,
+            isSafeHouseProtectionEnabled,
+            isSelectionInverted,
+            mapData,
+            safeHouses,
+            safeHousePadding,
+            selection,
+            zoomLevel
+        }
     } = useAppContext();
 
     const mapRootRef = useRef<HTMLDivElement>(null);
@@ -78,13 +97,72 @@ export const MapDisplay: React.FC = () => {
         context.fillStyle = 'hsla(0, 0%, 10%, 0)';
         context.fillRect(0, 0, canvasWidth, canvasHeight);
 
+        const fillRect = (x: number, y: number, w: number, h: number) => {
+            context.fillRect((x - minX) * zoomLevel, (y - minY) * zoomLevel, w * zoomLevel, h * zoomLevel);
+        };
+        const fillRectRegion = (region: Region) => {
+            const [{ x: x1, y: y1 }, { x: x2, y: y2 }] = region;
+            fillRect(x1, y1, x2 - x1, y2 - y1);
+        };
+        const writeTextAboveRegion = (region: Region, text: string) => {
+            const { width: textWidth, ...rest } = context.measureText(text);
+
+            const [{ x: x1, y: y1 }, { x: x2 }] = region;
+
+            const w = x2 - x1;
+            const x = x1 + w / 2 - textWidth / zoomLevel / 2;
+            const padding = 4;
+            const lineHeight = 8;
+            const y = y1;
+            const offsetY = -8;
+
+            context.fillStyle = Colors.TEXT_BACKGROUND;
+            context.fillRect(
+                (x - minX) * zoomLevel - padding,
+                (y - minY) * zoomLevel - lineHeight - padding + offsetY,
+                textWidth + padding * 2,
+                lineHeight + padding * 2
+            );
+
+            context.fillStyle = Colors.TEXT_COLOR;
+            context.fillText(text, (x - minX) * zoomLevel, (y - minY) * zoomLevel + offsetY);
+        };
+
         // Draw generated chunks
         for (const point of mapData) {
-            const isSelected = selection && isPointSelected(point, selection, isSelectionInverted);
-            context.fillStyle = isSelected ? 'hsla(0, 100%, 76%, 70%)' : 'hsla(41, 49%, 76%, 70%)';
-            context.fillRect((point.x - minX) * zoomLevel, (point.y - minY) * zoomLevel, 1 * zoomLevel, 1 * zoomLevel);
+            const isSelected = selection && isPointSelected(point, selection, isSelectionInverted, excludedRegions);
+            context.fillStyle = isSelected ? Colors.DELETE : Colors.DEFAULT;
+            fillRect(point.x, point.y, 1, 1);
         }
-    }, [mapData, tileInfo, selection, isSelectionInverted, zoomLevel]);
+
+        if (isSafeHouseProtectionEnabled) {
+            // Draw safe houses
+            for (const safeHouse of safeHouses) {
+                const { region, owner } = safeHouse;
+
+                const tooltip = `${owner}'s safehouse`;
+
+                context.fillStyle = Colors.SAFE_HOUSE;
+                fillRectRegion(region);
+
+                const expandedRegion = expandRegion(region, safeHousePadding);
+                context.fillStyle = Colors.SAFE_HOUSE_SURROUNDING;
+                fillRectRegion(expandedRegion);
+
+                writeTextAboveRegion(expandedRegion, tooltip);
+            }
+        }
+    }, [
+        mapData,
+        tileInfo,
+        isSafeHouseProtectionEnabled,
+        safeHousePadding,
+        safeHouses,
+        selection,
+        isSelectionInverted,
+        zoomLevel,
+        excludedRegions
+    ]);
 
     // Draw pending selection over map canvas
     useEffect(() => {
@@ -141,10 +219,10 @@ export const MapDisplay: React.FC = () => {
                 context.strokeRect(rectX, rectY, rectWidth, rectHeight);
             }
 
-            context.fillStyle = 'rgba(0,0,0,0.3)';
+            context.fillStyle = Colors.TEXT_BACKGROUND;
             const { width } = context.measureText(`X: ${mouseX} Y: ${mouseY}`);
             context.fillRect(0, 0, width + 12, 18);
-            context.fillStyle = 'white';
+            context.fillStyle = Colors.TEXT_COLOR;
             context.fillText(`X: ${mouseX} Y: ${mouseY}`, 4, 12);
         };
 
@@ -174,11 +252,11 @@ export const MapDisplay: React.FC = () => {
                 return;
             }
 
-            e.preventDefault();
-
             if (!selectionStart) {
                 return;
             }
+
+            e.preventDefault();
 
             const mouseX = mousePos.x;
             const mouseY = mousePos.y;
@@ -262,6 +340,7 @@ export const MapDisplay: React.FC = () => {
                                     }}
                                     width={zoomLevel * 100}
                                     height={zoomLevel * 100}
+                                    loading="lazy"
                                 ></img>
                             ))}
                         </div>

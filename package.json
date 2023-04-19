@@ -1,6 +1,6 @@
 {
   "name": "zomboid-chunk-cleaner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
   "dependencies": {
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
-    "@mui/material": "^5.4.1",
+    "@mui/material": "^5.12.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
   },

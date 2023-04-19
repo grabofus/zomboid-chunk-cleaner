@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppContext } from '../contexts';
-import type { AppContextValue, Coordinate, Region } from '../types';
-import { deleteMapData, loadMapData } from '../utils';
+import type { AppContextValue, Coordinate, Region, SafeHouse } from '../types';
+import { deleteMapData, expandRegion, loadMapData, loadSafeHouses } from '../utils';
 
 interface SelectionInfo {
     isSelectionInverted: boolean;
@@ -12,6 +12,7 @@ interface SelectionInfo {
 interface DeleteFiles {
     mapData: Coordinate[];
     selectionInfo?: SelectionInfo;
+    excludedRegions: Region[];
 }
 
 export const AppContainer: React.FC = (props) => {
@@ -22,10 +23,23 @@ export const AppContainer: React.FC = (props) => {
     const [mapData, setMapData] = useState<Coordinate[]>([]);
     const [zoomLevel, setZoomLevel] = useState<number>(1);
 
+    const [isSafeHouseProtectionEnabled, setIsSafeHouseProtectionEnabled] = useState<boolean>(true);
+    const [safeHouses, setSafeHouses] = useState<SafeHouse[]>([]);
+    const [safeHousePadding, setSafeHousePadding] = useState<number>(4);
+
     const deleteFilesRef = useRef<DeleteFiles>();
+
+    const excludedRegions = useMemo<Region[]>(() => {
+        if (!isSafeHouseProtectionEnabled) {
+            return [];
+        }
+        return safeHouses.map(({ region }) => expandRegion(region, safeHousePadding));
+    }, [isSafeHouseProtectionEnabled, safeHousePadding, safeHouses]);
+
     deleteFilesRef.current = {
         mapData,
-        selectionInfo
+        selectionInfo,
+        excludedRegions
     };
 
     const actions = useMemo<AppContextValue['actions']>(() => {
@@ -35,7 +49,7 @@ export const AppContainer: React.FC = (props) => {
                     throw new Error('Something went wrong!');
                 }
 
-                const { mapData, selectionInfo } = deleteFilesRef.current;
+                const { excludedRegions, mapData, selectionInfo } = deleteFilesRef.current;
                 if (!directoryHandleRef.current) {
                     console.error('No directory handle found! Cannot delete map files!');
                     return [mapData, Promise.resolve()];
@@ -49,7 +63,8 @@ export const AppContainer: React.FC = (props) => {
                     directoryHandleRef.current,
                     mapData,
                     selectionInfo.selection,
-                    selectionInfo.isSelectionInverted
+                    selectionInfo.isSelectionInverted,
+                    excludedRegions
                 );
 
                 done.then(() => {
@@ -60,8 +75,16 @@ export const AppContainer: React.FC = (props) => {
                 directoryHandleRef.current = await window.showDirectoryPicker();
 
                 const mapData = await loadMapData(directoryHandleRef.current);
+                const safeHouses = await loadSafeHouses(directoryHandleRef.current).catch((e) => {
+                    console.error(
+                        'Failed to load safe houses! Please raise an issue on Please raise an issue at https://github.com/grabofus/zomboid-chunk-cleaner/issues',
+                        e
+                    );
+                    return [];
+                });
 
                 setMapData(mapData);
+                setSafeHouses(safeHouses);
             },
             selectRegion: (region, isSelectionInverted) => {
                 setSelectionInfo({
@@ -72,6 +95,12 @@ export const AppContainer: React.FC = (props) => {
             unselectRegion: () => {
                 setSelectionInfo(undefined);
             },
+            setIsSafeHouseProtectionEnabled: (isSafeHouseProtectionEnabled) => {
+                setIsSafeHouseProtectionEnabled(isSafeHouseProtectionEnabled);
+            },
+            setSafeHousePadding: (safeHousePadding) => {
+                setSafeHousePadding(safeHousePadding);
+            },
             setZoomLevel: (zoomLevel) => {
                 setZoomLevel(zoomLevel);
             },
@@ -81,15 +110,25 @@ export const AppContainer: React.FC = (props) => {
         };
     }, []);
 
+    useEffect(() => {
+        if (!directoryHandleRef.current) {
+            return;
+        }
+    }, []);
+
     const state = useMemo<AppContextValue['state']>(
         () => ({
+            excludedRegions,
             isMapDisplayed,
+            isSafeHouseProtectionEnabled,
             isSelectionInverted: selectionInfo?.isSelectionInverted ?? false,
             mapData,
+            safeHouses,
+            safeHousePadding,
             selection: selectionInfo?.selection,
             zoomLevel
         }),
-        [isMapDisplayed, mapData, selectionInfo, zoomLevel]
+        [isMapDisplayed, isSafeHouseProtectionEnabled, mapData, safeHousePadding, safeHouses, selectionInfo, zoomLevel]
     );
 
     const value = useMemo(() => ({ actions, state }), [actions, state]);
