@@ -252,11 +252,11 @@ export const MapDisplay: React.FC = () => {
                 return;
             }
 
-            e.preventDefault();
-
             if (!selectionStart) {
                 return;
             }
+
+            e.preventDefault();
 
             const mouseX = mousePos.x;
             const mouseY = mousePos.y;

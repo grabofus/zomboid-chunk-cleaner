@@ -1,4 +1,4 @@
-import { Button, Checkbox, Collapse, FormControl, FormControlLabel, InputLabel, MenuItem, Select } from '@mui/material';
+import { Button, Checkbox, Collapse, FormControl, FormControlLabel, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 import { useAppContext } from '../hooks';
@@ -12,8 +12,17 @@ export const Menu: React.FC<MenuProps> = (props) => {
     const { onDelete } = props;
 
     const {
-        actions: { loadMapData, setZoomLevel, toggleMap, setIsSafeHouseProtectionEnabled },
-        state: { isMapDisplayed, isSelectionInverted, mapData, selection, zoomLevel, isSafeHouseProtectionEnabled, excludedRegions }
+        actions: { loadMapData, setZoomLevel, toggleMap, setIsSafeHouseProtectionEnabled, setSafeHousePadding },
+        state: {
+            isMapDisplayed,
+            isSelectionInverted,
+            mapData,
+            selection,
+            zoomLevel,
+            isSafeHouseProtectionEnabled,
+            excludedRegions,
+            safeHousePadding
+        }
     } = useAppContext();
 
     const [showInfo, setShowInfo] = useState(true);
@@ -73,6 +82,21 @@ export const Menu: React.FC<MenuProps> = (props) => {
                     </Select>
                 </FormControl>
             </div>
+            <Collapse in={isSafeHouseProtectionEnabled}>
+                <TextField
+                    label="Safehouse padding"
+                    type="number"
+                    value={safeHousePadding}
+                    onChange={(event) => {
+                        let value = parseInt(event.target.value, 10);
+                        if (isNaN(value)) {
+                            return;
+                        }
+                        value = Math.max(0, value);
+                        setSafeHousePadding(value);
+                    }}
+                />
+            </Collapse>
             <Collapse in={showInfo}>
                 <ul>
                     <li>
