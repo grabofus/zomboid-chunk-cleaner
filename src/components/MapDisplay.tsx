@@ -262,6 +262,7 @@ export const MapDisplay: React.FC = () => {
                                     }}
                                     width={zoomLevel * 100}
                                     height={zoomLevel * 100}
+                                    loading="lazy"
                                 ></img>
                             ))}
                         </div>

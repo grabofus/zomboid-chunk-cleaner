@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppContext } from '../contexts';
 import type { AppContextValue, Coordinate, Region } from '../types';
-import { deleteMapData, loadMapData } from '../utils';
+import { deleteMapData, loadMapData, loadSafeHouses } from '../utils';
 
 interface SelectionInfo {
     isSelectionInverted: boolean;
@@ -60,6 +60,13 @@ export const AppContainer: React.FC = (props) => {
                 directoryHandleRef.current = await window.showDirectoryPicker();
 
                 const mapData = await loadMapData(directoryHandleRef.current);
+                const safeHouses = await loadSafeHouses(directoryHandleRef.current).catch((e) => {
+                    console.error(
+                        'Failed to load safe houses! Please raise an issue on Please raise an issue at https://github.com/grabofus/zomboid-chunk-cleaner/issues',
+                        e
+                    );
+                    return [];
+                });
 
                 setMapData(mapData);
             },
@@ -79,6 +86,12 @@ export const AppContainer: React.FC = (props) => {
                 setIsMapDisplayed(isMapDisplayed);
             }
         };
+    }, []);
+
+    useEffect(() => {
+        if (!directoryHandleRef.current) {
+            return;
+        }
     }, []);
 
     const state = useMemo<AppContextValue['state']>(
