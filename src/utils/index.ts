@@ -1,5 +1,6 @@
 export * from './BinaryReader';
 export * from './deleteMapData';
+export * from './expandRegion';
 export * from './isChildOf';
 export * from './isPointInRegion';
 export * from './isPointSelected';

@@ -12,13 +12,19 @@ export const AppContext = createContext<AppContextValue>({
         loadMapData: err,
         selectRegion: err,
         unselectRegion: err,
+        setIsSafeHouseProtectionEnabled: err,
+        setSafeHousePadding: err,
         setZoomLevel: err,
         toggleMap: err
     },
     state: {
+        excludedRegions: [],
         isMapDisplayed: true,
+        isSafeHouseProtectionEnabled: true,
         isSelectionInverted: false,
         mapData: [],
+        safeHousePadding: 4,
+        safeHouses: [],
         selection: undefined,
         zoomLevel: 1
     }

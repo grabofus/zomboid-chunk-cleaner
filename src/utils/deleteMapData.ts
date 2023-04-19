@@ -7,9 +7,12 @@ export const deleteMapData = (
     directoryHandle: FileSystemDirectoryHandle,
     mapData: Coordinate[],
     region: Region,
-    isSelectionInverted: boolean
+    isSelectionInverted: boolean,
+    excludedRegions: Region[]
 ): [mapData: Coordinate[], done: Promise<void>] => {
-    const [pointsToDelete, pointsToKeep] = partition(mapData, (point) => isPointSelected(point, region, isSelectionInverted));
+    const [pointsToDelete, pointsToKeep] = partition(mapData, (point) =>
+        isPointSelected(point, region, isSelectionInverted, excludedRegions)
+    );
 
     const filesToDelete = pointsToDelete.map(({ x, y }) => `map_${x}_${y}.bin`);
 

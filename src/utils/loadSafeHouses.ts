@@ -1,14 +1,6 @@
-import { BinaryReader } from './BinaryReader';
+import type { SafeHouse } from '../types';
 
-interface SafeHouse {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    owner: string;
-    players: string[];
-    title: string;
-}
+import { BinaryReader } from './BinaryReader';
 
 const loadFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
@@ -120,10 +112,10 @@ export const loadSafeHouses = async (directoryHandle: FileSystemDirectoryHandle)
         }
 
         safeHouses.push({
-            x,
-            y,
-            w,
-            h,
+            region: [
+                { x: Math.floor(x / 10), y: Math.floor(y / 10) },
+                { x: Math.ceil((x + w) / 10), y: Math.ceil((y + h) / 10) }
+            ],
             owner,
             players,
             title
