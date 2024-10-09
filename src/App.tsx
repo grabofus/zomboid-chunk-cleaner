@@ -2,7 +2,7 @@ import './App.css';
 
 import { useState } from 'react';
 
-import { CompatibilityAlert, ConfirmDeleteModal, MapDisplay, Menu, Support } from './components';
+import { CompatibilityAlert, ConfirmDeleteModal, MapDisplay, Menu } from './components';
 
 export const App: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,7 +16,6 @@ export const App: React.FC = () => {
             <div>
                 <MapDisplay />
             </div>
-            <Support />
             <ConfirmDeleteModal isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </>
     );
